@@ -38,13 +38,14 @@ def importLines(lineMap, graphFileOut, cliPath = getDepthmapXcli()):
     df['y1'] = lineCoords.apply( lambda line: line[1])
     df['x2'] = lineCoords.apply( lambda line: line[2])
     df['y2'] = lineCoords.apply( lambda line: line[3])
-    with tempfile.NamedTemporaryFile(suffix='.tsv') as tmp:
+    with tempfile.NamedTemporaryFile(suffix='.tsv', delete=False) as tmp:
         df.to_csv(tmp, sep='\t', index=False)
         subprocess.check_output([cliPath,
                              "-f",  tmp.name,
                              "-o",  graphFileOut,
                              "-m",  "IMPORT",
                              "-it", "data"])
+        tmp.close()
         
 
 def generateRandomCapString(n = 10):
@@ -87,24 +88,28 @@ def export(graphFileIn, fileOut, exportType,
 
 def getPointmapData(graphFileIn, scale = 1, cliPath = getDepthmapXcli()):
     
-    with tempfile.NamedTemporaryFile(suffix='.csv') as mapFile:
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as mapFile:
         export(graphFileIn, mapFile.name, "pointmap-data-csv", cliPath)
         dpm = processPointMap(mapFile, scale, ",")
+        mapFile.close()
         return(dpm);
 
 
 def getPointmapLinks(graphFileIn, cliPath = getDepthmapXcli()):
-    with tempfile.NamedTemporaryFile(suffix='.csv') as csvFile:
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as csvFile:
         export(graphFileIn, csvFile.name, "pointmap-links-csv", cliPath)
         links = read.csv(csvFile)
+        csvFile.close()
         return(links);
 
 
 def getPointmapDataAndLinks(graphFileIn, scale = 1, cliPath = getDepthmapXcli()):
-    with tempfile.NamedTemporaryFile(suffix='.csv') as mapFile, tempfile.NamedTemporaryFile(suffix='.csv') as linkFile:
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as mapFile, tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as linkFile:
         export(graphFileIn, mapFile.name, "pointmap-data-csv")
         export(graphFileIn, linkFile.name, "pointmap-links-csv")
         dpm = processPointMapAndLinks(mapFile, linkFile, scale, ",")
+        mapFile.close()
+        linkFile.close()
         return(dpm);
 
 def refIDtoIndex(refID):
@@ -132,23 +137,26 @@ def processPointMapAndLinks(mapPath, linkPath = None, scale = 1, sep = "\t"):
 
 
 def getShapeGraph(graphFileIn, cliPath = getDepthmapXcli()):
-    with tempfile.NamedTemporaryFile(suffix='.mif') as mapFile:
+    with tempfile.NamedTemporaryFile(suffix='.mif', delete=False) as mapFile:
         export(graphFileIn, mapFile.name, "shapegraph-map-mif", cliPath)
         ogr = geopandas.read_file(mapFile.name)
+        mapFile.close()
         return(ogr);
 
 
 def getShapeGraphConnections(graphFileIn, cliPath = getDepthmapXcli()):
-    with tempfile.NamedTemporaryFile(suffix='.csv') as connectionsFile:
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as connectionsFile:
         export(graphFileIn, connectionsFile.name, "shapegraph-connections-csv", cliPath)
         csv = pd.read_csv(connectionsFile.name, header = True, sep = ",")
+        connectionsFile.close()
         return(csv);
 
 
 def getShapeGraphLinksUnlinks(graphFileIn, cliPath = getDepthmapXcli()):
-    with tempfile.NamedTemporaryFile(suffix='.csv') as linksunlinksFile:
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as linksunlinksFile:
         export(graphFileIn, linksunlinksFile.name, "shapegraph-links-unlinks-csv", cliPath)
         csv = pd.read_csv(linksunlinksFile.name, header = True, sep = ",")
+        linksunlinksFile.close()
         return(csv);
     
     
@@ -236,7 +244,7 @@ def fillGrid(graphFileIn, graphFileOut = None, fillX = None, fillY = None,
     if len(fillX) != len(fillY):
         raise ValueError("fillX and fillY must have the same number of coordinates")
         
-    with tempfile.NamedTemporaryFile(suffix='.tsv') as tmpPtz:
+    with tempfile.NamedTemporaryFile(suffix='.tsv', delete=False) as tmpPtz:
         
         li = np.transpose([fillX, fillY])
         dt = pd.DataFrame(li, columns=['x', 'y'])
@@ -249,6 +257,7 @@ def fillGrid(graphFileIn, graphFileOut = None, fillX = None, fillY = None,
                   "-pf", tmpPtz.name]
 
         subprocess.check_output(params)
+        tmpPtz.close()
 
 
 def makeVGAGraph(graphFileIn, graphFileOut = None, maxVisibility = None, boundaryGraph = False,
@@ -354,7 +363,7 @@ def linkMapCoords(graphFileIn, graphFileOut = None, linkFromX = None, linkFromY 
     if mapTypeToLink not in ["pointmaps", "shapegraphs"]:
         raise ValueError("Unknown map type: " + mapTypeToLink)
 
-    with tempfile.NamedTemporaryFile(suffix='.tsv') as tmpPtz:
+    with tempfile.NamedTemporaryFile(suffix='.tsv', delete=False) as tmpPtz:
         
         li = np.transpose([linkFromX, linkFromY, linkToX, linkToY])
         dt = pd.DataFrame(li, columns=['x1', 'y1', 'x2', 'y2'])
@@ -371,6 +380,7 @@ def linkMapCoords(graphFileIn, graphFileOut = None, linkFromX = None, linkFromY 
 
 
         subprocess.check_output(params)
+        tmpPtz.close()
 
 
 def linkMapRefs(graphFileIn, graphFileOut = None, linkFrom = None, linkTo = None,
@@ -397,7 +407,7 @@ def linkMapRefs(graphFileIn, graphFileOut = None, linkFrom = None, linkTo = None
     if mapTypeToLink not in ["pointmaps", "shapegraphs"]:
         raise ValueError("Unknown map type: " + mapTypeToLink)
 
-    with tempfile.NamedTemporaryFile(suffix='.tsv') as tmpPtz:
+    with tempfile.NamedTemporaryFile(suffix='.tsv', delete=False) as tmpPtz:
         
         li = np.transpose([linkFrom, linkTo])
         dt = pd.DataFrame(li, columns=['reffrom', 'refto'])
@@ -414,6 +424,8 @@ def linkMapRefs(graphFileIn, graphFileOut = None, linkFrom = None, linkTo = None
                  "-lf", tmpPtz.name]
 
         subprocess.check_output(params)
+        
+        tmpPtz.close()
 
         
         
@@ -449,7 +461,7 @@ def agentAnalysis(graphFileIn, graphFileOut = None, lookMode = "standard", times
         params.extend(["-atrails", numberOfTrails])
               
     if originX is not None:
-        with tempfile.NamedTemporaryFile(suffix='.tsv') as tmpPtz:
+        with tempfile.NamedTemporaryFile(suffix='.tsv', delete=False) as tmpPtz:
             if not isinstance(originX, list):
                 originX = [originX]
             if not isinstance(originY, list):
@@ -460,6 +472,7 @@ def agentAnalysis(graphFileIn, graphFileOut = None, lookMode = "standard", times
 
             params.extend(["-alocfile", tmpPtz])
             subprocess.check_output(params)
+            tmpPtz.close()
   
     else:
         subprocess.check_output(params)
